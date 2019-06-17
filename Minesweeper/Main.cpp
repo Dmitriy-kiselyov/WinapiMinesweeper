@@ -35,6 +35,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 		return NULL;
 	}
 
+	drawMinesweeperControls(hMainWnd);
+
 	ShowWindow(hMainWnd, nCmdShow); // отображаем окошко
 	UpdateWindow(hMainWnd); // обновляем окошко
 
