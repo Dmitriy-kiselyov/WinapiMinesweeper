@@ -1,10 +1,11 @@
 #include <random>
+#include <iostream>
 #include "Game.h"
 
 Game::Game(int width, int height, int mines) {
 	_width = width;
 	_height = height;
-	_mines = mines;
+	mineCount = mines;
 
 	createField();
 }
@@ -20,11 +21,15 @@ int Game::getHeight() {
 }
 
 int Game::getMineCount() {
-	return _mines;
+	return mineCount;
 }
 
 int Game::getFeild(int y, int x) {
 	return field[y][x];
+}
+
+std::pair<int, int>* Game::getMines() {
+	return mines;
 }
 
 // PRIVATE
@@ -36,13 +41,17 @@ void Game::createField() {
 		std::fill(field[i], field[i] + _width, 0);
 	}
 
-	for (int t = 0; t < _mines; t++) {
+	mines = new std::pair<int, int>[mineCount];
+	for (int t = 0; t < mineCount; t++) {
 		int y = rand() % _height;
 		int x = rand() % _width;
-		if (field[y][x] != -1)
+		if (field[y][x] != -1) {
 			putMine(y, x);
-		else
+			mines[t] = std::pair<int, int>(y, x);
+		}
+		else {
 			t--;
+		}
 	}
 }
 

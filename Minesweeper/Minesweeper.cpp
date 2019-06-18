@@ -8,11 +8,13 @@
 TCHAR MINESWEEPER_CLASSNAME[] = L"Minesweeper";
 std::map<int, HWND> components;
 Game game(8, 8, 10);
+bool gameIsOver = false;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 void handleFieldClick(int code);
 int getComponentCode(int y, int x);
 std::pair<int, int> parseComponentCode(int code);
+void gameOver();
 
 WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
 	WNDCLASSEX wc; // создаём экземпляр, для обращения к членам класса WNDCLASSEX
@@ -87,14 +89,36 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 }
 
 void handleFieldClick(int code) {
+	if (gameIsOver) {
+		return;
+	}
+
 	std::pair<int, int> yx = parseComponentCode(code);
 	HWND button = components.at(code);
 
 	int value = game.getFeild(yx.first, yx.second);
 
-	std::string text = value >= 0 ? std::to_string(value) : "X";
+	if (value == -1) {
+		gameOver();
 
+		return;
+	}
+
+	std::string text = std::to_string(value);
 	SetWindowTextA(button, text.c_str());
+}
+
+void gameOver() {
+	std::pair<int, int>* mines = game.getMines();
+
+	for (int i = 0; i < game.getMineCount(); i++) {
+		int code = getComponentCode(mines[i].first, mines[i].second);
+		HWND button = components.at(code);
+
+		SetWindowTextA(button, "X");
+	}
+
+	gameIsOver = true;
 }
 
 int getComponentCode(int y, int x) {

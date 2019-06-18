@@ -1,11 +1,13 @@
 #pragma once
+#include <iostream>
 
 class Game {
 private:
 	int** field;
 	int _width;
 	int _height;
-	int _mines;
+	int mineCount;
+	std::pair<int, int> *mines;
 
 	void createField();
 	void putMine(int y, int x);
@@ -17,5 +19,6 @@ public:
 	int getWidth();
 	int getHeight();
 	int getMineCount();
+	std::pair<int, int>* getMines();
 	int getFeild(int y, int x);
 };
