@@ -11,7 +11,6 @@ private:
 
 	void createField();
 	void putMine(int y, int x);
-	bool inField(int y, int x);
 
 public:
 	Game(int width, int height, int mines);
@@ -20,5 +19,6 @@ public:
 	int getHeight();
 	int getMineCount();
 	std::pair<int, int>* getMines();
-	int getFeild(int y, int x);
+	int getCell(int y, int x);
+	bool inField(int y, int x);
 };

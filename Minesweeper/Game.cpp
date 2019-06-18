@@ -24,7 +24,7 @@ int Game::getMineCount() {
 	return mineCount;
 }
 
-int Game::getFeild(int y, int x) {
+int Game::getCell(int y, int x) {
 	return field[y][x];
 }
 

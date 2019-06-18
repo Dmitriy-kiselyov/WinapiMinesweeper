@@ -7,14 +7,16 @@
 
 TCHAR MINESWEEPER_CLASSNAME[] = L"Minesweeper";
 std::map<int, HWND> components;
-Game game(8, 8, 10);
+Game game(8, 8, 5);
+bool** visited;
 bool gameIsOver = false;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 void handleFieldClick(int code);
+void removeEmptyCells(int y, int x);
+void gameOver();
 int getComponentCode(int y, int x);
 std::pair<int, int> parseComponentCode(int code);
-void gameOver();
 
 WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
 	WNDCLASSEX wc; // создаём экземпляр, для обращения к членам класса WNDCLASSEX
@@ -35,6 +37,12 @@ WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
 }
 
 void drawMinesweeperControls(HWND hMainWnd) {
+	visited = new bool*[game.getHeight()];
+	for (int i = 0; i < game.getWidth(); i++) {
+		visited[i] = new bool[game.getWidth()];
+		std::fill(visited[i], visited[i] + game.getWidth(), false);
+	}
+
 	components = std::map<int, HWND>();
 
 	// draw buttons
@@ -94,9 +102,14 @@ void handleFieldClick(int code) {
 	}
 
 	std::pair<int, int> yx = parseComponentCode(code);
+
+	if (visited[yx.first][yx.second]) {
+		return;
+	}
+
 	HWND button = components.at(code);
 
-	int value = game.getFeild(yx.first, yx.second);
+	int value = game.getCell(yx.first, yx.second);
 
 	if (value == -1) {
 		gameOver();
@@ -104,8 +117,40 @@ void handleFieldClick(int code) {
 		return;
 	}
 
+	if (value == 0) {
+		removeEmptyCells(yx.first, yx.second);
+
+		return;
+	}
+
 	std::string text = std::to_string(value);
 	SetWindowTextA(button, text.c_str());
+}
+
+void removeEmptyCells(int y, int x) {
+	visited[y][x] = true;
+
+
+	int code = getComponentCode(y, x);
+	HWND button = components.at(code);
+	int cell = game.getCell(y, x);
+
+	if (cell != 0) {
+		std::string text = std::to_string(cell);
+		SetWindowTextA(button, text.c_str());
+
+		return;
+	}
+
+	DestroyWindow(button);
+
+	for (int i = -1; i <= 1; i++) {
+		for (int j = -1; j <= 1; j++) {
+			if (game.inField(y + i, x + j) && !visited[y + i][x + j]) {
+				removeEmptyCells(y + i, x + j);
+			}
+		}
+	}
 }
 
 void gameOver() {
