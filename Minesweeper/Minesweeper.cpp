@@ -15,6 +15,7 @@ bool** visited;
 bool gameIsOver;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+void DrawCell(LPDRAWITEMSTRUCT item);
 
 void handleReset();
 void handleFieldClick(int code);
@@ -71,7 +72,7 @@ void drawMinesweeperControls(HWND hMainWnd) {
 			HWND button = CreateWindowA(
 				"button",
 				"",
-				WS_CHILD | WS_VISIBLE | BS_FLAT | BS_PUSHBUTTON,
+				WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
 				x, y,
 				cellSize, cellSize,
 				hMainWnd,
@@ -104,8 +105,17 @@ void drawMinesweeperControls(HWND hMainWnd) {
 // ѕрототип функции обработки сообщений
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	int code = LOWORD(wParam);
+	std::map<int, HWND>::iterator it;
+
+	LPDRAWITEMSTRUCT item;
 
 	switch (uMsg) {
+	case WM_DRAWITEM:
+		item = (LPDRAWITEMSTRUCT)lParam;
+
+		if (item->CtlID <= 100) {
+			DrawCell(item);
+		}
 	case WM_PAINT: // если нужно нарисовать, то:
 		break;
 	case WM_DESTROY: // если окошко закрылось, то:
@@ -128,6 +138,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	return NULL; // возвращаем значение
 }
 
+void DrawCell(LPDRAWITEMSTRUCT item)
+{
+	HDC hdc = item->hDC;
+	HWND hwnd = item->hwndItem;
+	RECT rect = item->rcItem;
+
+	HBRUSH hpen = CreateSolidBrush(RGB(230, 230, 230));
+	SelectObject(hdc, hpen);
+	Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
+	DeleteObject(hpen);
+
+	LPWSTR text = new wchar_t[1];
+	GetWindowText(hwnd, text, 1);
+
+	HFONT font = CreateFont(30, 0, 0, 0, 700, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
+	SetBkMode(hdc, TRANSPARENT);
+	SelectObject(hdc, font);
+
+	DrawText(hdc, text, 1, &rect, DT_SINGLELINE | DT_VCENTER | DT_CENTER);
+}
 
 void handleReset() {
 	for (std::map<int, HWND>::iterator it = cells.begin(); it != cells.end(); ++it) {
@@ -138,7 +168,6 @@ void handleReset() {
 	drawMinesweeperControls(mainWindow);
 	UpdateWindow(mainWindow);
 }
-
 
 void handleFieldClick(int code) {
 	if (gameIsOver) {
