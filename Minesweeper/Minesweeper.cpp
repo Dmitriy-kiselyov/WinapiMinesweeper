@@ -6,12 +6,17 @@
 #include <map>
 
 TCHAR MINESWEEPER_CLASSNAME[] = L"Minesweeper";
-std::map<int, HWND> components;
-Game game(8, 8, 5);
+const int RESET_ID = 1000;
+
+std::map<int, HWND> cells;
+HWND mainWindow;
+Game game(1, 1, 0);
 bool** visited;
-bool gameIsOver = false;
+bool gameIsOver;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+
+void handleReset();
 void handleFieldClick(int code);
 void removeEmptyCells(int y, int x);
 void gameOver();
@@ -37,13 +42,18 @@ WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
 }
 
 void drawMinesweeperControls(HWND hMainWnd) {
+	mainWindow = hMainWnd;
+
+	game = Game(8, 8, 10);
+	gameIsOver = false;
+
 	visited = new bool*[game.getHeight()];
 	for (int i = 0; i < game.getWidth(); i++) {
 		visited[i] = new bool[game.getWidth()];
 		std::fill(visited[i], visited[i] + game.getWidth(), false);
 	}
 
-	components = std::map<int, HWND>();
+	cells = std::map<int, HWND>();
 
 	// draw buttons
 	int marginTop = 150;
@@ -70,9 +80,25 @@ void drawMinesweeperControls(HWND hMainWnd) {
 				NULL
 			);
 
-			components.insert(std::pair<int, HWND>(id, button));
+			cells.insert(std::pair<int, HWND>(id, button));
 		}
 	}
+
+	//draw reset button
+	int resetWidth = game.getWidth() * (gapX + cellSize) - gapX;
+	int resetTop = marginTop + game.getHeight() * (gapY + cellSize) + cellSize;
+
+	CreateWindowA(
+		"button",
+		"Новая игра",
+		WS_CHILD | WS_VISIBLE | BS_FLAT | BS_PUSHBUTTON,
+		marginLeft, resetTop,
+		resetWidth, cellSize,
+		hMainWnd,
+		(HMENU)RESET_ID,
+		NULL,
+		NULL
+	);
 }
 
 // Прототип функции обработки сообщений
@@ -86,7 +112,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		PostQuitMessage(NULL); // отправляем WinMain() сообщение WM_QUIT
 		break;
 	case WM_COMMAND:
-		handleFieldClick(code);
+		switch (code) {
+		case RESET_ID:
+			handleReset();
+			break;
+		default:
+			handleFieldClick(code);
+		}
 
 		return 0;
 	default:
@@ -95,6 +127,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
 	return NULL; // возвращаем значение
 }
+
+
+void handleReset() {
+	for (std::map<int, HWND>::iterator it = cells.begin(); it != cells.end(); ++it) {
+		HWND button = it->second;
+		DestroyWindow(button);
+	}
+
+	drawMinesweeperControls(mainWindow);
+	UpdateWindow(mainWindow);
+}
+
 
 void handleFieldClick(int code) {
 	if (gameIsOver) {
@@ -107,7 +151,7 @@ void handleFieldClick(int code) {
 		return;
 	}
 
-	HWND button = components.at(code);
+	HWND button = cells.at(code);
 
 	int value = game.getCell(yx.first, yx.second);
 
@@ -132,7 +176,7 @@ void removeEmptyCells(int y, int x) {
 
 
 	int code = getComponentCode(y, x);
-	HWND button = components.at(code);
+	HWND button = cells.at(code);
 	int cell = game.getCell(y, x);
 
 	if (cell != 0) {
@@ -158,7 +202,7 @@ void gameOver() {
 
 	for (int i = 0; i < game.getMineCount(); i++) {
 		int code = getComponentCode(mines[i].first, mines[i].second);
-		HWND button = components.at(code);
+		HWND button = cells.at(code);
 
 		SetWindowTextA(button, "X");
 	}
