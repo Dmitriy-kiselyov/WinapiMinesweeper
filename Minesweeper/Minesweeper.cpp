@@ -7,12 +7,23 @@
 #include <map>
 
 TCHAR MINESWEEPER_CLASSNAME[] = L"Minesweeper";
-const int RESET_ID = 1000;
+const int RESET_ID = 12345;
+const int CODE_BASE = 100;
 
-const int MARGIN_TOP = 150;
-const int MARGIN_LEFT = 400;
-const int GAP = 0;
-const int CELL_SIZE = 45;
+const int GAME_SIZE = 12;
+const int BOMB_COUNT = 20;
+
+const int SCREEN_WIDTH = 600;
+const int SCREEN_HEIGHT = 800;
+
+const int GRID_H = GAME_SIZE + 4;
+const int MARGIN_V = 40;
+const int CELL_SIZE = (SCREEN_HEIGHT - MARGIN_V * 2) / GRID_H;
+const int FIELD_SIZE = CELL_SIZE * GAME_SIZE;
+const int MARGIN_HOR = (SCREEN_WIDTH - FIELD_SIZE) / 2;
+
+const int BOMB_FONT_SIZE = 25;
+const int RESULT_FONT_SIZE = 60;
 
 std::map<int, HWND> cells;
 HWND mainWindow;
@@ -62,7 +73,7 @@ WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
 void drawMinesweeperControls(HWND hMainWnd) {
 	mainWindow = hMainWnd;
 
-	game = Game(8, 8, 10);
+	game = Game(GAME_SIZE, GAME_SIZE, BOMB_COUNT);
 	gameIsOver = 0;
 	flagCount = 0;
 	visitedCount = 0;
@@ -76,10 +87,12 @@ void drawMinesweeperControls(HWND hMainWnd) {
 	cells = std::map<int, HWND>();
 
 	// draw buttons
+	int marginTop = MARGIN_V + CELL_SIZE * 2;
+
 	for (int i = 0; i < game.getHeight(); i++) {
 		for (int j = 0; j < game.getWidth(); j++) {
-			int x = MARGIN_LEFT + j * GAP + j * CELL_SIZE;
-			int y = MARGIN_TOP + i * GAP + i * CELL_SIZE;
+			int x = MARGIN_HOR + j * CELL_SIZE;
+			int y = marginTop + i * CELL_SIZE;
 			int id = getComponentCode(i, j);
 
 			HWND button = CreateWindowExA(
@@ -100,14 +113,14 @@ void drawMinesweeperControls(HWND hMainWnd) {
 	}
 
 	//draw reset button
-	int resetWidth = (game.getWidth() * (GAP + CELL_SIZE) - GAP) / 2;
-	int resetTop = MARGIN_TOP + game.getHeight() * (GAP + CELL_SIZE) + CELL_SIZE;
+	int resetWidth = FIELD_SIZE / 2;
+	int resetTop = MARGIN_V + CELL_SIZE * 2 + FIELD_SIZE + CELL_SIZE;
 
 	CreateWindowA(
 		"button",
 		"Новая игра",
 		WS_CHILD | WS_VISIBLE | BS_FLAT | BS_PUSHBUTTON,
-		MARGIN_LEFT, resetTop,
+		MARGIN_HOR, resetTop,
 		resetWidth, CELL_SIZE,
 		hMainWnd,
 		(HMENU)RESET_ID,
@@ -158,11 +171,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 }
 
 void renderGameResultLabel(HDC hdc) {
-	int totalWidth = game.getWidth() * (GAP + CELL_SIZE) - GAP;
-	labelResultRect.left = MARGIN_LEFT;
-	labelResultRect.top = MARGIN_TOP - 70;
-	labelResultRect.right = MARGIN_LEFT + totalWidth;
-	labelResultRect.bottom = MARGIN_TOP - 5;
+	int totalWidth = game.getWidth() * CELL_SIZE;
+	labelResultRect.left = MARGIN_HOR;
+	labelResultRect.top = MARGIN_V;
+	labelResultRect.right = MARGIN_HOR + totalWidth;
+	labelResultRect.bottom = MARGIN_V + CELL_SIZE;
 
 	if (!gameIsOver) {
 		return;
@@ -182,7 +195,7 @@ void renderGameResultLabel(HDC hdc) {
 		textLength = 10;
 	}
 
-	HFONT font = CreateFont(50, 0, 0, 0, 700, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
+	HFONT font = CreateFont(RESULT_FONT_SIZE, 0, 0, 0, 700, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
 	SetBkMode(hdc, TRANSPARENT);
 	SelectObject(hdc, font);
 	SetTextColor(hdc, color);
@@ -199,14 +212,12 @@ void renderGameResultLabel(HDC hdc) {
 void renderBombCountLabel(HDC hdc) {
 	int left = max(game.getMineCount() - flagCount, 0);
 
-	int totalWidth = game.getWidth() * (GAP + CELL_SIZE) - GAP;
-	int totalHeight = game.getWidth() * (GAP + CELL_SIZE) - GAP;
-	bombCountRect.left = MARGIN_LEFT + totalWidth / 2;
-	bombCountRect.top = MARGIN_TOP + game.getHeight() * (GAP + CELL_SIZE) + CELL_SIZE;
-	bombCountRect.right = MARGIN_LEFT + totalWidth;
-	bombCountRect.bottom = bombCountRect.top + CELL_SIZE;
+	bombCountRect.left = MARGIN_HOR + FIELD_SIZE / 2;
+	bombCountRect.top = MARGIN_V + CELL_SIZE * 2 + FIELD_SIZE + CELL_SIZE;
+	bombCountRect.right = SCREEN_WIDTH - MARGIN_HOR;
+	bombCountRect.bottom = SCREEN_HEIGHT - MARGIN_V;
 
-	HFONT font = CreateFont(22, 0, 0, 0, 300, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
+	HFONT font = CreateFont(BOMB_FONT_SIZE, 0, 0, 0, 300, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
 	SetBkMode(hdc, TRANSPARENT);
 	SelectObject(hdc, font);
 	SetTextColor(hdc, RGB(200, 200, 200));
@@ -387,12 +398,12 @@ void gameWon() {
 }
 
 int getComponentCode(int y, int x) {
-	return y * 10 + x;
+	return y * CODE_BASE + x;
 }
 
 std::pair<int, int> parseComponentCode(int code) {
-	int y = code / 10;
-	int x = code % 10;
+	int y = code / CODE_BASE;
+	int x = code % CODE_BASE;
 
 	return std::pair<int, int>(y, x);
 }

@@ -18,11 +18,11 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	hMainWnd = CreateWindow(
 		MINESWEEPER_CLASSNAME, // им€ класса
 		L"—ап®р", // им€ окошка (то что сверху)
-		WS_OVERLAPPEDWINDOW, // режимы отображени€ окошка
+		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, // режимы отображени€ окошка
 		CW_USEDEFAULT, // позици€ окошка по оси х
 		NULL, // позици€ окошка по оси у (раз дефолт в х, то писать не нужно)
-		CW_USEDEFAULT, // ширина окошка
-		NULL, // высота окошка (раз дефолт в ширине, то писать не нужно)
+		600 + 20, // ширина окошка
+		800 + 40, // высота окошка (раз дефолт в ширине, то писать не нужно)
 		(HWND)NULL, // дескриптор родительского окна
 		NULL, // дескриптор меню
 		HINSTANCE(hInst), // дескриптор экземпл€ра приложени€

@@ -4,6 +4,8 @@
 
 TCHAR CELL_CLASSNAME[] = L"CellClass";
 
+const int CELL_FONT_SIZE = 32;
+
 COLORREF *COLORS = new COLORREF[9] { RGB(255, 0, 0), RGB(0, 0, 200), RGB(0, 150, 0), RGB(150, 0, 0), RGB(186,85,211),
 RGB(0, 0, 0), RGB(128, 0, 0), RGB(100, 100, 100), RGB(63, 224, 208) };
 
@@ -65,7 +67,7 @@ LRESULT __stdcall CellProc(HWND window, unsigned message, WPARAM wParam, LPARAM 
 		DeleteObject(hpen);
 
 		color = COLORS[i];
-		font = CreateFont(30, 0, 0, 0, 700, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
+		font = CreateFont(CELL_FONT_SIZE, 0, 0, 0, 700, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
 		SetBkMode(hdc, TRANSPARENT);
 		SelectObject(hdc, font);
 		SetTextColor(hdc, color);
