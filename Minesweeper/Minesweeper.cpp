@@ -9,8 +9,16 @@
 TCHAR MINESWEEPER_CLASSNAME[] = L"Minesweeper";
 const int RESET_ID = 1000;
 
+const int MARGIN_TOP = 150;
+const int MARGIN_LEFT = 400;
+const int GAP = 1;
+const int CELL_SIZE = 45;
+
 std::map<int, HWND> cells;
 HWND mainWindow;
+RECT labelResultRect;
+RECT bombCountRect;
+
 Game game(1, 1, 0);
 int** visited; // 0 - пусто, 1 - открыта, 2 - стоит флаг
 int gameIsOver; // 0 - нет, 1 - победа, 2 - поражение
@@ -18,7 +26,8 @@ int flagCount;
 int visitedCount;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-void renderLabel(HWND hWnd);
+void renderGameResultLabel(HDC hdc);
+void renderBombCountLabel(HDC hdc);
 
 void handleReset();
 void handleCellClick(int code);
@@ -53,7 +62,7 @@ WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
 void drawMinesweeperControls(HWND hMainWnd) {
 	mainWindow = hMainWnd;
 
-	game = Game(8, 8, 2);
+	game = Game(8, 8, 4);
 	gameIsOver = 0;
 	flagCount = 0;
 	visitedCount = 0;
@@ -67,16 +76,10 @@ void drawMinesweeperControls(HWND hMainWnd) {
 	cells = std::map<int, HWND>();
 
 	// draw buttons
-	int marginTop = 150;
-	int marginLeft = 400;
-	int gapX = 2;
-	int gapY = 2;
-	int cellSize = 45;
-
 	for (int i = 0; i < game.getHeight(); i++) {
 		for (int j = 0; j < game.getWidth(); j++) {
-			int x = marginLeft + j * gapX + j * cellSize;
-			int y = marginTop + i * gapY + i * cellSize;
+			int x = MARGIN_LEFT + j * GAP + j * CELL_SIZE;
+			int y = MARGIN_TOP + i * GAP + i * CELL_SIZE;
 			int id = getComponentCode(i, j);
 
 			HWND button = CreateWindowExA(
@@ -85,7 +88,7 @@ void drawMinesweeperControls(HWND hMainWnd) {
 				"",
 				WS_CHILD | WS_VISIBLE,
 				x, y,
-				cellSize, cellSize,
+				CELL_SIZE, CELL_SIZE,
 				hMainWnd,
 				(HMENU)id,
 				GetModuleHandle(0),
@@ -97,15 +100,15 @@ void drawMinesweeperControls(HWND hMainWnd) {
 	}
 
 	//draw reset button
-	int resetWidth = game.getWidth() * (gapX + cellSize) - gapX;
-	int resetTop = marginTop + game.getHeight() * (gapY + cellSize) + cellSize;
+	int resetWidth = (game.getWidth() * (GAP + CELL_SIZE) - GAP) / 2;
+	int resetTop = MARGIN_TOP + game.getHeight() * (GAP + CELL_SIZE) + CELL_SIZE;
 
 	CreateWindowA(
 		"button",
 		"Новая игра",
 		WS_CHILD | WS_VISIBLE | BS_FLAT | BS_PUSHBUTTON,
-		marginLeft, resetTop,
-		resetWidth, cellSize,
+		MARGIN_LEFT, resetTop,
+		resetWidth, CELL_SIZE,
 		hMainWnd,
 		(HMENU)RESET_ID,
 		NULL,
@@ -118,10 +121,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	int code = LOWORD(wParam);
 	std::map<int, HWND>::iterator it;
 	std::string s;
+	PAINTSTRUCT ps;
+	HDC hdc;
 
 	switch (uMsg) {
 	case WM_PAINT: // если нужно нарисовать, то:
-		renderLabel(hWnd);
+		hdc = BeginPaint(hWnd, &ps);
+
+		renderGameResultLabel(hdc);
+		renderBombCountLabel(hdc);
+
+		EndPaint(hWnd, &ps);
 		break;
 	case WM_DESTROY: // если окошко закрылось, то:
 		PostQuitMessage(NULL); // отправляем WinMain() сообщение WM_QUIT
@@ -147,20 +157,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	return NULL; // возвращаем значение
 }
 
-void renderLabel(HWND hWnd) {
+void renderGameResultLabel(HDC hdc) {
+	int totalWidth = game.getWidth() * (GAP + CELL_SIZE) - GAP;
+	labelResultRect.left = MARGIN_LEFT;
+	labelResultRect.top = MARGIN_TOP - 70;
+	labelResultRect.right = MARGIN_LEFT + totalWidth;
+	labelResultRect.bottom = MARGIN_TOP - 5;
+
 	if (!gameIsOver) {
 		return;
 	}
-
-	int marginTop = 150;
-	int marginLeft = 400;
-	int resetWidth = game.getWidth() * (2 + 45) - 2;
-
-	RECT labelRect;
-	labelRect.left = marginLeft;
-	labelRect.top = marginTop - 70;
-	labelRect.right = marginLeft + resetWidth;
-	labelRect.bottom = marginTop - 5;
 
 	COLORREF color;
 	LPCSTR text;
@@ -176,9 +182,6 @@ void renderLabel(HWND hWnd) {
 		textLength = 10;
 	}
 
-	PAINTSTRUCT ps;
-	HDC hdc = BeginPaint(hWnd, &ps);
-
 	HFONT font = CreateFont(50, 0, 0, 0, 700, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
 	SetBkMode(hdc, TRANSPARENT);
 	SelectObject(hdc, font);
@@ -188,11 +191,35 @@ void renderLabel(HWND hWnd) {
 		hdc,
 		text,
 		textLength,
-		&labelRect,
+		&labelResultRect,
 		DT_CENTER | DT_SINGLELINE | DT_VCENTER
 	);
+}
 
-	EndPaint(hWnd, &ps);
+void renderBombCountLabel(HDC hdc) {
+	int left = max(game.getMineCount() - flagCount, 0);
+
+	int totalWidth = game.getWidth() * (GAP + CELL_SIZE) - GAP;
+	int totalHeight = game.getWidth() * (GAP + CELL_SIZE) - GAP;
+	bombCountRect.left = MARGIN_LEFT + totalWidth / 2;
+	bombCountRect.top = MARGIN_TOP + game.getHeight() * (GAP + CELL_SIZE) + CELL_SIZE;
+	bombCountRect.right = MARGIN_LEFT + totalWidth;
+	bombCountRect.bottom = bombCountRect.top + CELL_SIZE;
+
+	HFONT font = CreateFont(22, 0, 0, 0, 300, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
+	SetBkMode(hdc, TRANSPARENT);
+	SelectObject(hdc, font);
+	SetTextColor(hdc, RGB(200, 200, 200));
+
+	std::string text = "Бомб осталось: " + std::to_string(left);
+
+	DrawTextA(
+		hdc,
+		text.c_str(),
+		text.length(),
+		&bombCountRect,
+		DT_RIGHT | DT_SINGLELINE | DT_VCENTER
+	);
 }
 
 void handleReset() {
@@ -279,6 +306,8 @@ void handleCellRightClick(int code) {
 
 		SetWindowTextA(button, "");
 	}
+
+	InvalidateRect(mainWindow, &bombCountRect, TRUE);
 }
 
 void removeEmptyCells(int y, int x) {
@@ -317,10 +346,14 @@ void gameLost() {
 	}
 
 	gameIsOver = 2;
+
+	InvalidateRect(mainWindow, &labelResultRect, TRUE);
 }
 
 void gameWon() {
 	gameIsOver = 1;
+
+	InvalidateRect(mainWindow, &labelResultRect, TRUE);
 }
 
 int getComponentCode(int y, int x) {
