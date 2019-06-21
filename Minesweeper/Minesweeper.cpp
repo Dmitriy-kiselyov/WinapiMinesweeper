@@ -1,6 +1,7 @@
 #include <windows.h>
 #include "Minesweeper.h"
 #include "Game.h"
+#include "Cell.h"
 #include <iostream>
 #include <string>
 #include <map>
@@ -15,7 +16,6 @@ bool** visited;
 bool gameIsOver;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-void DrawCell(LPDRAWITEMSTRUCT item);
 
 void handleReset();
 void handleFieldClick(int code);
@@ -25,6 +25,8 @@ int getComponentCode(int y, int x);
 std::pair<int, int> parseComponentCode(int code);
 
 WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
+	registerCellClass(hInst);
+
 	WNDCLASSEX wc; // создаЄм экземпл€р, дл€ обращени€ к членам класса WNDCLASSEX
 	wc.cbSize = sizeof(wc); // размер структуры (в байтах)
 	wc.style = CS_HREDRAW | CS_VREDRAW; // стиль класса окошка
@@ -45,7 +47,7 @@ WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
 void drawMinesweeperControls(HWND hMainWnd) {
 	mainWindow = hMainWnd;
 
-	game = Game(8, 8, 10);
+	game = Game(8, 8, 5);
 	gameIsOver = false;
 
 	visited = new bool*[game.getHeight()];
@@ -69,16 +71,17 @@ void drawMinesweeperControls(HWND hMainWnd) {
 			int y = marginTop + i * gapY + i * cellSize;
 			int id = getComponentCode(i, j);
 
-			HWND button = CreateWindowA(
-				"button",
+			HWND button = CreateWindowExA(
+				0,
+				"CellClass",
 				"",
-				WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+				WS_CHILD | WS_VISIBLE,
 				x, y,
 				cellSize, cellSize,
 				hMainWnd,
 				(HMENU)id,
-				NULL,
-				NULL
+				GetModuleHandle(0),
+				0
 			);
 
 			cells.insert(std::pair<int, HWND>(id, button));
@@ -106,16 +109,9 @@ void drawMinesweeperControls(HWND hMainWnd) {
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	int code = LOWORD(wParam);
 	std::map<int, HWND>::iterator it;
-
-	LPDRAWITEMSTRUCT item;
+	std::string s;
 
 	switch (uMsg) {
-	case WM_DRAWITEM:
-		item = (LPDRAWITEMSTRUCT)lParam;
-
-		if (item->CtlID <= 100) {
-			DrawCell(item);
-		}
 	case WM_PAINT: // если нужно нарисовать, то:
 		break;
 	case WM_DESTROY: // если окошко закрылось, то:
@@ -136,27 +132,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	}
 
 	return NULL; // возвращаем значение
-}
-
-void DrawCell(LPDRAWITEMSTRUCT item)
-{
-	HDC hdc = item->hDC;
-	HWND hwnd = item->hwndItem;
-	RECT rect = item->rcItem;
-
-	HBRUSH hpen = CreateSolidBrush(RGB(230, 230, 230));
-	SelectObject(hdc, hpen);
-	Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
-	DeleteObject(hpen);
-
-	LPWSTR text = new wchar_t[1];
-	GetWindowText(hwnd, text, 1);
-
-	HFONT font = CreateFont(30, 0, 0, 0, 700, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
-	SetBkMode(hdc, TRANSPARENT);
-	SelectObject(hdc, font);
-
-	DrawText(hdc, text, 1, &rect, DT_SINGLELINE | DT_VCENTER | DT_CENTER);
 }
 
 void handleReset() {
