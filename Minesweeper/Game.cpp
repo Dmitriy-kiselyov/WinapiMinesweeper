@@ -1,5 +1,6 @@
-#include <random>
 #include <iostream>
+#include <cstdlib>
+#include <ctime>
 #include "Game.h"
 
 Game::Game(int width, int height, int mines) {
@@ -42,6 +43,8 @@ void Game::createField() {
 	}
 
 	mines = new std::pair<int, int>[mineCount];
+	srand(time(NULL));
+
 	for (int t = 0; t < mineCount; t++) {
 		int y = rand() % _height;
 		int x = rand() % _width;
