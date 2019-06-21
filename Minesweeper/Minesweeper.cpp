@@ -13,16 +13,20 @@ std::map<int, HWND> cells;
 HWND mainWindow;
 Game game(1, 1, 0);
 int** visited; // 0 - пусто, 1 - открыта, 2 - стоит флаг
-bool gameIsOver;
+int gameIsOver; // 0 - нет, 1 - победа, 2 - поражение
 int flagCount;
+int visitedCount;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+void renderLabel(HWND hWnd);
 
 void handleReset();
 void handleCellClick(int code);
 void handleCellRightClick(int code);
 void removeEmptyCells(int y, int x);
-void gameOver();
+void visitCell(int y, int x);
+void gameLost();
+void gameWon();
 int getComponentCode(int y, int x);
 std::pair<int, int> parseComponentCode(int code);
 
@@ -49,9 +53,10 @@ WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
 void drawMinesweeperControls(HWND hMainWnd) {
 	mainWindow = hMainWnd;
 
-	game = Game(8, 8, 5);
-	gameIsOver = false;
+	game = Game(8, 8, 2);
+	gameIsOver = 0;
 	flagCount = 0;
+	visitedCount = 0;
 
 	visited = new int*[game.getHeight()];
 	for (int i = 0; i < game.getWidth(); i++) {
@@ -116,6 +121,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
 	switch (uMsg) {
 	case WM_PAINT: // если нужно нарисовать, то:
+		renderLabel(hWnd);
 		break;
 	case WM_DESTROY: // если окошко закрылось, то:
 		PostQuitMessage(NULL); // отправляем WinMain() сообщение WM_QUIT
@@ -141,6 +147,54 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	return NULL; // возвращаем значение
 }
 
+void renderLabel(HWND hWnd) {
+	if (!gameIsOver) {
+		return;
+	}
+
+	int marginTop = 150;
+	int marginLeft = 400;
+	int resetWidth = game.getWidth() * (2 + 45) - 2;
+
+	RECT labelRect;
+	labelRect.left = marginLeft;
+	labelRect.top = marginTop - 70;
+	labelRect.right = marginLeft + resetWidth;
+	labelRect.bottom = marginTop - 5;
+
+	COLORREF color;
+	LPCSTR text;
+	int textLength;
+	if (gameIsOver == 1) {
+		color = RGB(0, 200, 0);
+		text = "Победа!";
+		textLength = 7;
+	}
+	else {
+		color = RGB(200, 0, 0);
+		text = "Поражение!";
+		textLength = 10;
+	}
+
+	PAINTSTRUCT ps;
+	HDC hdc = BeginPaint(hWnd, &ps);
+
+	HFONT font = CreateFont(50, 0, 0, 0, 700, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, 0, L"Arial");
+	SetBkMode(hdc, TRANSPARENT);
+	SelectObject(hdc, font);
+	SetTextColor(hdc, color);
+
+	DrawTextA(
+		hdc,
+		text,
+		textLength,
+		&labelRect,
+		DT_CENTER | DT_SINGLELINE | DT_VCENTER
+	);
+
+	EndPaint(hWnd, &ps);
+}
+
 void handleReset() {
 	for (std::map<int, HWND>::iterator it = cells.begin(); it != cells.end(); ++it) {
 		HWND button = it->second;
@@ -148,6 +202,7 @@ void handleReset() {
 	}
 
 	drawMinesweeperControls(mainWindow);
+	InvalidateRect(mainWindow, NULL, TRUE);
 	UpdateWindow(mainWindow);
 }
 
@@ -166,7 +221,7 @@ void handleCellClick(int code) {
 	int value = game.getCell(yx.first, yx.second);
 
 	if (value == -1) {
-		gameOver();
+		gameLost();
 
 		return;
 	}
@@ -176,9 +231,25 @@ void handleCellClick(int code) {
 
 		return;
 	}
+	else {
+		visitCell(yx.first, yx.second);
+	}
 
 	std::string text = std::to_string(value);
 	SetWindowTextA(button, text.c_str());
+}
+
+void visitCell(int y, int x) {
+	if (visited[y][x]) {
+		return;
+	}
+
+	visited[y][x] = 1;
+	visitedCount++;
+
+	if (game.getWidth() * game.getHeight() == visitedCount + game.getMineCount()) {
+		gameWon();
+	}
 }
 
 void handleCellRightClick(int code) {
@@ -211,7 +282,7 @@ void handleCellRightClick(int code) {
 }
 
 void removeEmptyCells(int y, int x) {
-	visited[y][x] = 1;
+	visitCell(y, x);
 
 	int code = getComponentCode(y, x);
 	HWND button = cells.at(code);
@@ -235,7 +306,7 @@ void removeEmptyCells(int y, int x) {
 	}
 }
 
-void gameOver() {
+void gameLost() {
 	std::pair<int, int>* mines = game.getMines();
 
 	for (int i = 0; i < game.getMineCount(); i++) {
@@ -245,7 +316,11 @@ void gameOver() {
 		SetWindowTextA(button, "X");
 	}
 
-	gameIsOver = true;
+	gameIsOver = 2;
+}
+
+void gameWon() {
+	gameIsOver = 1;
 }
 
 int getComponentCode(int y, int x) {

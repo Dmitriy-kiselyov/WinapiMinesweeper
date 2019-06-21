@@ -36,9 +36,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	}
 
 	drawMinesweeperControls(hMainWnd);
-
-	ShowWindow(hMainWnd, nCmdShow); // отображаем окошко
-	UpdateWindow(hMainWnd); // обновляем окошко
+	ShowWindow(hMainWnd, nCmdShow);
+	UpdateWindow(hMainWnd);
 
 	while (GetMessage(&msg, NULL, NULL, NULL)) { // извлекаем сообщения из очереди, посылаемые функциями, ОС
 		TranslateMessage(&msg); // интерпретируем сообщения
