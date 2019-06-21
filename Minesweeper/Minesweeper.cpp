@@ -267,8 +267,13 @@ void handleCellClick(int code) {
 }
 
 void visitCell(int y, int x) {
-	if (visited[y][x]) {
+	if (visited[y][x] == 1) {
 		return;
+	}
+
+	if (visited[y][x] == 2) {
+		flagCount--;
+		InvalidateRect(mainWindow, &bombCountRect, TRUE);
 	}
 
 	visited[y][x] = 1;
