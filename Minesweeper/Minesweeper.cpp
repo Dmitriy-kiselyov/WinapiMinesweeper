@@ -1,4 +1,4 @@
-#include <windows.h>
+п»ї#include <windows.h>
 #include "Minesweeper.h"
 #include "Game.h"
 #include "Cell.h"
@@ -12,13 +12,15 @@ const int RESET_ID = 1000;
 std::map<int, HWND> cells;
 HWND mainWindow;
 Game game(1, 1, 0);
-bool** visited;
+int** visited; // 0 - РїСѓСЃС‚Рѕ, 1 - РѕС‚РєСЂС‹С‚Р°, 2 - СЃС‚РѕРёС‚ С„Р»Р°Рі
 bool gameIsOver;
+int flagCount;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 void handleReset();
-void handleFieldClick(int code);
+void handleCellClick(int code);
+void handleCellRightClick(int code);
 void removeEmptyCells(int y, int x);
 void gameOver();
 int getComponentCode(int y, int x);
@@ -27,19 +29,19 @@ std::pair<int, int> parseComponentCode(int code);
 WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
 	registerCellClass(hInst);
 
-	WNDCLASSEX wc; // создаём экземпляр, для обращения к членам класса WNDCLASSEX
-	wc.cbSize = sizeof(wc); // размер структуры (в байтах)
-	wc.style = CS_HREDRAW | CS_VREDRAW; // стиль класса окошка
-	wc.lpfnWndProc = WndProc; // указатель на пользовательскую функцию
-	wc.lpszMenuName = NULL; // указатель на имя меню (у нас его нет)
-	wc.lpszClassName = MINESWEEPER_CLASSNAME; // указатель на имя класса
-	wc.cbWndExtra = NULL; // число освобождаемых байтов в конце структуры
-	wc.cbClsExtra = NULL; // число освобождаемых байтов при создании экземпляра приложения
-	wc.hIcon = LoadIcon(NULL, IDI_WINLOGO); // декриптор пиктограммы
-	wc.hIconSm = LoadIcon(NULL, IDI_WINLOGO); // дескриптор маленькой пиктограммы (в трэе)
-	wc.hCursor = LoadCursor(NULL, IDC_ARROW); // дескриптор курсора
-	wc.hbrBackground = CreateSolidBrush(RGB(50, 50, 50));; // дескриптор кисти для закраски фона окна
-	wc.hInstance = hInst; // указатель на строку, содержащую имя меню, применяемого для класса
+	WNDCLASSEX wc; // СЃРѕР·РґР°С‘Рј СЌРєР·РµРјРїР»СЏСЂ, РґР»СЏ РѕР±СЂР°С‰РµРЅРёСЏ Рє С‡Р»РµРЅР°Рј РєР»Р°СЃСЃР° WNDCLASSEX
+	wc.cbSize = sizeof(wc); // СЂР°Р·РјРµСЂ СЃС‚СЂСѓРєС‚СѓСЂС‹ (РІ Р±Р°Р№С‚Р°С…)
+	wc.style = CS_HREDRAW | CS_VREDRAW; // СЃС‚РёР»СЊ РєР»Р°СЃСЃР° РѕРєРѕС€РєР°
+	wc.lpfnWndProc = WndProc; // СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєСѓСЋ С„СѓРЅРєС†РёСЋ
+	wc.lpszMenuName = NULL; // СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РёРјСЏ РјРµРЅСЋ (Сѓ РЅР°СЃ РµРіРѕ РЅРµС‚)
+	wc.lpszClassName = MINESWEEPER_CLASSNAME; // СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РёРјСЏ РєР»Р°СЃСЃР°
+	wc.cbWndExtra = NULL; // С‡РёСЃР»Рѕ РѕСЃРІРѕР±РѕР¶РґР°РµРјС‹С… Р±Р°Р№С‚РѕРІ РІ РєРѕРЅС†Рµ СЃС‚СЂСѓРєС‚СѓСЂС‹
+	wc.cbClsExtra = NULL; // С‡РёСЃР»Рѕ РѕСЃРІРѕР±РѕР¶РґР°РµРјС‹С… Р±Р°Р№С‚РѕРІ РїСЂРё СЃРѕР·РґР°РЅРёРё СЌРєР·РµРјРїР»СЏСЂР° РїСЂРёР»РѕР¶РµРЅРёСЏ
+	wc.hIcon = LoadIcon(NULL, IDI_WINLOGO); // РґРµРєСЂРёРїС‚РѕСЂ РїРёРєС‚РѕРіСЂР°РјРјС‹
+	wc.hIconSm = LoadIcon(NULL, IDI_WINLOGO); // РґРµСЃРєСЂРёРїС‚РѕСЂ РјР°Р»РµРЅСЊРєРѕР№ РїРёРєС‚РѕРіСЂР°РјРјС‹ (РІ С‚СЂСЌРµ)
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW); // РґРµСЃРєСЂРёРїС‚РѕСЂ РєСѓСЂСЃРѕСЂР°
+	wc.hbrBackground = CreateSolidBrush(RGB(50, 50, 50));; // РґРµСЃРєСЂРёРїС‚РѕСЂ РєРёСЃС‚Рё РґР»СЏ Р·Р°РєСЂР°СЃРєРё С„РѕРЅР° РѕРєРЅР°
+	wc.hInstance = hInst; // СѓРєР°Р·Р°С‚РµР»СЊ РЅР° СЃС‚СЂРѕРєСѓ, СЃРѕРґРµСЂР¶Р°С‰СѓСЋ РёРјСЏ РјРµРЅСЋ, РїСЂРёРјРµРЅСЏРµРјРѕРіРѕ РґР»СЏ РєР»Р°СЃСЃР°
 
 	return wc;
 }
@@ -49,11 +51,12 @@ void drawMinesweeperControls(HWND hMainWnd) {
 
 	game = Game(8, 8, 5);
 	gameIsOver = false;
+	flagCount = 0;
 
-	visited = new bool*[game.getHeight()];
+	visited = new int*[game.getHeight()];
 	for (int i = 0; i < game.getWidth(); i++) {
-		visited[i] = new bool[game.getWidth()];
-		std::fill(visited[i], visited[i] + game.getWidth(), false);
+		visited[i] = new int[game.getWidth()];
+		std::fill(visited[i], visited[i] + game.getWidth(), 0);
 	}
 
 	cells = std::map<int, HWND>();
@@ -94,7 +97,7 @@ void drawMinesweeperControls(HWND hMainWnd) {
 
 	CreateWindowA(
 		"button",
-		"Новая игра",
+		"РќРѕРІР°СЏ РёРіСЂР°",
 		WS_CHILD | WS_VISIBLE | BS_FLAT | BS_PUSHBUTTON,
 		marginLeft, resetTop,
 		resetWidth, cellSize,
@@ -105,17 +108,17 @@ void drawMinesweeperControls(HWND hMainWnd) {
 	);
 }
 
-// Прототип функции обработки сообщений
+// РџСЂРѕС‚РѕС‚РёРї С„СѓРЅРєС†РёРё РѕР±СЂР°Р±РѕС‚РєРё СЃРѕРѕР±С‰РµРЅРёР№
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	int code = LOWORD(wParam);
 	std::map<int, HWND>::iterator it;
 	std::string s;
 
 	switch (uMsg) {
-	case WM_PAINT: // если нужно нарисовать, то:
+	case WM_PAINT: // РµСЃР»Рё РЅСѓР¶РЅРѕ РЅР°СЂРёСЃРѕРІР°С‚СЊ, С‚Рѕ:
 		break;
-	case WM_DESTROY: // если окошко закрылось, то:
-		PostQuitMessage(NULL); // отправляем WinMain() сообщение WM_QUIT
+	case WM_DESTROY: // РµСЃР»Рё РѕРєРѕС€РєРѕ Р·Р°РєСЂС‹Р»РѕСЃСЊ, С‚Рѕ:
+		PostQuitMessage(NULL); // РѕС‚РїСЂР°РІР»СЏРµРј WinMain() СЃРѕРѕР±С‰РµРЅРёРµ WM_QUIT
 		break;
 	case WM_COMMAND:
 		switch (code) {
@@ -123,15 +126,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 			handleReset();
 			break;
 		default:
-			handleFieldClick(code);
+			handleCellClick(code);
 		}
 
 		return 0;
+	case WM_NOTIFY: // РўРёРїР° РїСЂР°РІР°СЏ РєРЅРѕРїРєР° РјС‹С€Рё
+		handleCellRightClick(code);
+
+		break;
 	default:
-		return DefWindowProc(hWnd, uMsg, wParam, lParam); // если закрыли окошко
+		return DefWindowProc(hWnd, uMsg, wParam, lParam); // РµСЃР»Рё Р·Р°РєСЂС‹Р»Рё РѕРєРѕС€РєРѕ
 	}
 
-	return NULL; // возвращаем значение
+	return NULL; // РІРѕР·РІСЂР°С‰Р°РµРј Р·РЅР°С‡РµРЅРёРµ
 }
 
 void handleReset() {
@@ -144,19 +151,18 @@ void handleReset() {
 	UpdateWindow(mainWindow);
 }
 
-void handleFieldClick(int code) {
+void handleCellClick(int code) {
 	if (gameIsOver) {
 		return;
 	}
 
 	std::pair<int, int> yx = parseComponentCode(code);
 
-	if (visited[yx.first][yx.second]) {
+	if (visited[yx.first][yx.second] != 0) {
 		return;
 	}
 
 	HWND button = cells.at(code);
-
 	int value = game.getCell(yx.first, yx.second);
 
 	if (value == -1) {
@@ -175,9 +181,37 @@ void handleFieldClick(int code) {
 	SetWindowTextA(button, text.c_str());
 }
 
-void removeEmptyCells(int y, int x) {
-	visited[y][x] = true;
+void handleCellRightClick(int code) {
+	if (gameIsOver) {
+		return;
+	}
 
+	std::pair<int, int> yx = parseComponentCode(code);
+	int visit = visited[yx.first][yx.second];
+
+	if (visit == 1) {
+		return;
+	}
+
+	HWND button = cells.at(code);
+	int value = game.getCell(yx.first, yx.second);
+
+	if (visit == 0) {
+		visited[yx.first][yx.second] = 2;
+		flagCount++;
+
+		SetWindowText(button, L"вљ‘");
+	}
+	else { // 2
+		visited[yx.first][yx.second] = 0;
+		flagCount--;
+
+		SetWindowTextA(button, "");
+	}
+}
+
+void removeEmptyCells(int y, int x) {
+	visited[y][x] = 1;
 
 	int code = getComponentCode(y, x);
 	HWND button = cells.at(code);
@@ -194,7 +228,7 @@ void removeEmptyCells(int y, int x) {
 
 	for (int i = -1; i <= 1; i++) {
 		for (int j = -1; j <= 1; j++) {
-			if (game.inField(y + i, x + j) && !visited[y + i][x + j]) {
+			if (game.inField(y + i, x + j) && visited[y + i][x + j] != 1) {
 				removeEmptyCells(y + i, x + j);
 			}
 		}

@@ -72,6 +72,14 @@ LRESULT __stdcall CellProc(HWND window, unsigned message, WPARAM wParam, LPARAM 
 			(LPARAM)window);
 
 		break;
+	case WM_RBUTTONDOWN:
+		NMHDR nmh;
+		SendMessage(GetParent(window),
+			WM_NOTIFY,
+			GetDlgCtrlID(window),
+			(LPARAM)window);
+
+		break;
 	default:
 		res = DefWindowProc(window, message, wParam, lParam);
 	}
