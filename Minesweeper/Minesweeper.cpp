@@ -30,7 +30,7 @@ void renderGameResultLabel(HDC hdc);
 void renderBombCountLabel(HDC hdc);
 
 void handleReset();
-void handleCellClick(int code);
+void handleCellClick(int code, bool recursive);
 void handleCellRightClick(int code);
 void removeEmptyCells(int y, int x);
 void visitCell(int y, int x);
@@ -62,7 +62,7 @@ WNDCLASSEX createMinesweeperWindow(HINSTANCE hInst) {
 void drawMinesweeperControls(HWND hMainWnd) {
 	mainWindow = hMainWnd;
 
-	game = Game(8, 8, 4);
+	game = Game(8, 8, 10);
 	gameIsOver = 0;
 	flagCount = 0;
 	visitedCount = 0;
@@ -142,7 +142,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 			handleReset();
 			break;
 		default:
-			handleCellClick(code);
+			handleCellClick(code, true);
 		}
 
 		return 0;
@@ -233,19 +233,44 @@ void handleReset() {
 	UpdateWindow(mainWindow);
 }
 
-void handleCellClick(int code) {
+void handleCellClick(int code, bool recurcive=true) {
 	if (gameIsOver) {
 		return;
 	}
 
 	std::pair<int, int> yx = parseComponentCode(code);
+	int y = yx.first;
+	int x = yx.second;
 
-	if (visited[yx.first][yx.second] != 0) {
+	if (visited[y][x] == 1 && recurcive) {
+		int flagsAround = 0;
+		for (int i = -1; i <= 1; i++) {
+			for (int j = -1; j <= 1; j++) {
+				if ((i != 0 || j != 0) && game.inField(y + i, x + j) && visited[y + i][x + j] == 2) {
+					flagsAround++;
+				}
+			}
+		}
+
+		if (flagsAround != game.getCell(y, x)) {
+			return;
+		}
+
+		for (int i = -1; i <= 1; i++) {
+			for (int j = -1; j <= 1; j++) {
+				if ((i != 0 || j != 0) && game.inField(y + i, x + j)) {
+					handleCellClick(getComponentCode(y + i, x + j), false);
+				}
+			}
+		}
+	}
+
+	if (visited[y][x] != 0) {
 		return;
 	}
 
 	HWND button = cells.at(code);
-	int value = game.getCell(yx.first, yx.second);
+	int value = game.getCell(y, x);
 
 	if (value == -1) {
 		gameLost();
@@ -254,12 +279,12 @@ void handleCellClick(int code) {
 	}
 
 	if (value == 0) {
-		removeEmptyCells(yx.first, yx.second);
+		removeEmptyCells(y, x);
 
 		return;
 	}
 	else {
-		visitCell(yx.first, yx.second);
+		visitCell(y, x);
 	}
 
 	std::string text = std::to_string(value);
