@@ -11,7 +11,7 @@ const int RESET_ID = 1000;
 
 const int MARGIN_TOP = 150;
 const int MARGIN_LEFT = 400;
-const int GAP = 1;
+const int GAP = 0;
 const int CELL_SIZE = 45;
 
 std::map<int, HWND> cells;
@@ -211,7 +211,7 @@ void renderBombCountLabel(HDC hdc) {
 	SelectObject(hdc, font);
 	SetTextColor(hdc, RGB(200, 200, 200));
 
-	std::string text = "Бомб осталось: " + std::to_string(left);
+	std::string text = "Мин осталось: " + std::to_string(left);
 
 	DrawTextA(
 		hdc,
@@ -372,7 +372,7 @@ void gameLost() {
 		int code = getComponentCode(mines[i].first, mines[i].second);
 		HWND button = cells.at(code);
 
-		SetWindowTextA(button, "X");
+		SetWindowText(button, L"✖");
 	}
 
 	gameIsOver = 2;
